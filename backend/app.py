@@ -3,18 +3,20 @@ from flask_cors import CORS
 import requests
 import random
 import urllib.parse
-import os
+import requests
 from dotenv import load_dotenv
-
-# Load .env variables
 load_dotenv()
+
 
 app = Flask(__name__)
 CORS(app)
 
-# Environment Variables
+import os
+
+
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 PEXELS_API_URL = os.environ.get("PEXELS_API_URL", "https://api.pexels.com/v1/search")
+
 
 
 class DictionaryAPI:
@@ -25,6 +27,15 @@ class DictionaryAPI:
     def search_word(self, word):
         word = word.strip().lower()
 
+        # if word == 'ajay':
+        #     definitions = [{
+        #         'type': 'person',
+        #         'definition': "Ajay Balina is an upcoming hero from AP (Andhra Pradesh), currently pursuing B.Tech in Sri Vasavi Engineering College in the ECE branch.",
+        #         'example': "Ajay Balina is known for his innovative tech ideas."
+        #     }]
+        #     image_url = "/static/images/ajay.jpg"  # Serve it correctly
+        #     return self.build_response(word, definitions, image_url=image_url)
+
         if word in self.dictionary:
             definitions = self.dictionary[word]
             image_url = self.fetch_image(word)
@@ -32,7 +43,7 @@ class DictionaryAPI:
             return self.build_response(word, definitions, image_url)
 
         try:
-            response = requests.get(f'https://api.dictionaryapi.dev/api/v2/entries/en/{word}', timeout=10)
+            response = requests.get(f'https://api.dictionaryapi.dev/api/v2/entries/en/{word}')
             response.raise_for_status()
             data = response.json()
 
@@ -46,17 +57,18 @@ class DictionaryAPI:
                     })
 
             image_url = self.fetch_image(word)
+
             self.dictionary[word] = definitions
             self.add_to_history(word, definitions)
             return self.build_response(word, definitions, image_url=image_url)
 
-        except requests.RequestException as e:
-            print(f"[DictionaryAPI Error] {e}")
+        except:
             return self.fetch_from_external_sources(word)
 
     def fetch_from_external_sources(self, word):
         word = word.strip().lower()
 
+        # 1. Wikipedia
         summary, image_url = self.fetch_from_wikipedia(word)
         if summary:
             definitions = [{'type': 'info', 'definition': summary, 'example': ''}]
@@ -64,6 +76,7 @@ class DictionaryAPI:
             self.add_to_history(word, definitions)
             return self.build_response(word, definitions, image_url)
 
+        # 2. Jikan
         about, image_url = self.fetch_from_jikan(word)
         if about:
             definitions = [{'type': 'character', 'definition': about, 'example': ''}]
@@ -71,6 +84,7 @@ class DictionaryAPI:
             self.add_to_history(word, definitions)
             return self.build_response(word, definitions, image_url)
 
+        # 3. Wikidata
         wikidata_summary = self.fetch_from_wikidata(word)
         if wikidata_summary:
             image_url = self.fetch_image(word)
@@ -79,6 +93,7 @@ class DictionaryAPI:
             self.add_to_history(word, definitions)
             return self.build_response(word, definitions, image_url)
 
+        # 4. DuckDuckGo
         duck_result = self.fetch_image_duckduckgo(word)
         if duck_result:
             image_url = self.fetch_image(word)
@@ -87,12 +102,14 @@ class DictionaryAPI:
             self.add_to_history(word, definitions)
             return self.build_response(word, definitions, image_url)
 
+        # Fallback
         return {
             'word': word,
             'definitions': [],
             'found': False,
             'suggestions': []
         }
+
 
     def fetch_from_wikipedia(self, word):
         try:
@@ -102,7 +119,7 @@ class DictionaryAPI:
                 f"&prop=extracts|pageimages&exintro=true&explaintext=true"
                 f"&titles={encoded_word}&pithumbsize=500&redirects=1"
             )
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, timeout=15)
             if response.status_code == 200:
                 pages = response.json().get("query", {}).get("pages", {})
                 for page in pages.values():
@@ -114,28 +131,29 @@ class DictionaryAPI:
             print(f"[Wikipedia Error] {e}")
         return None, None
 
+
     def fetch_from_jikan(self, word):
         try:
-            res = requests.get(f'https://api.jikan.moe/v4/characters?q={word}&limit=5', timeout=10)
+            res = requests.get(f'https://api.jikan.moe/v4/characters?q={word}&limit=5')
             if res.status_code == 200:
                 data = res.json().get('data', [])
                 for character in data:
                     if character['name'].strip().lower() == word.lower():
                         return character.get('about'), character['images']['jpg']['image_url']
-        except Exception as e:
-            print(f"[Jikan Error] {e}")
+        except:
+            pass
         return None, None
 
     def fetch_from_wikidata(self, word):
         try:
             url = f'https://www.wikidata.org/w/api.php?action=wbsearchentities&search={word}&language=en&format=json'
-            res = requests.get(url, timeout=10)
+            res = requests.get(url)
             if res.status_code == 200:
                 data = res.json()
                 if data.get('search'):
                     return data['search'][0].get('description')
-        except Exception as e:
-            print(f"[Wikidata Error] {e}")
+        except:
+            pass
         return None
 
     def fetch_image_duckduckgo(self, query):
@@ -147,24 +165,21 @@ class DictionaryAPI:
             )
             if res.status_code == 200:
                 data = res.json()
-                return data.get("Image")
+                return data.get("Image")  # returns first image URL
         except Exception as e:
             print(f"[DuckDuckGo Image Error] {e}")
         return None
 
     def fetch_image(self, query):
-        if not PEXELS_API_KEY:
-            print("[ERROR] PEXELS_API_KEY is not set.")
-            return None
         try:
             headers = {'Authorization': PEXELS_API_KEY}
-            res = requests.get(f'{PEXELS_API_URL}?query={query}&per_page=1', headers=headers, timeout=10)
+            res = requests.get(f'{PEXELS_API_URL}?query={query}&per_page=1', headers=headers)
             if res.status_code == 200:
                 data = res.json()
                 if data['photos']:
                     return data['photos'][0]['src']['medium']
-        except Exception as e:
-            print(f"[Pexels Error] {e}")
+        except:
+            pass
         return None
 
     def build_response(self, word, definitions, image_url=None):
