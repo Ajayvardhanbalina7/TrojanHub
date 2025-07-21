@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import SearchBox from './components/SearchBox';
@@ -12,9 +11,8 @@ function App() {
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
 
-  const API_BASE = process.env.NODE_ENV === 'production' 
-    ? '/api' 
-    : 'http://localhost:5000/api';
+  // ✅ Use Render backend in production, fallback to localhost in dev
+  const API_BASE = process.env.REACT_APP_API_BASE || 'https://trojanhub.onrender.com/api';
 
   useEffect(() => {
     fetchHistory();
@@ -31,18 +29,17 @@ function App() {
 
   const searchWord = async (word) => {
     if (!word.trim()) return;
-    
     setLoading(true);
     try {
       const response = await axios.get(`${API_BASE}/search`, {
         params: { word: word.trim() }
       });
       setSearchResult(response.data);
-      fetchHistory(); // Refresh history after search
+      fetchHistory();
     } catch (error) {
       console.error('Error searching word:', error);
       setSearchResult({
-        word: word,
+        word,
         found: false,
         definitions: [],
         suggestions: [],
@@ -69,13 +66,11 @@ function App() {
   const deleteFromHistory = async (word) => {
     try {
       await axios.post(`${API_BASE}/delete`, { word });
-      fetchHistory(); // Refresh history
+      fetchHistory();
     } catch (error) {
       console.error('Error deleting from history:', error);
     }
   };
-
-
 
   const searchFromHistory = (word) => {
     searchWord(word);
@@ -133,7 +128,6 @@ function App() {
             onRandomWord={getRandomWord}
             loading={loading}
           />
-          
 
           <div className="action-buttons">
             <button 
@@ -153,7 +147,6 @@ function App() {
             onDeleteWord={deleteFromHistory}
           />
         )}
-        
       </main>
 
       <footer className="app-footer">

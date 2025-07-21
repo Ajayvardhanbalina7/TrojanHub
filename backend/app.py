@@ -4,12 +4,19 @@ import requests
 import random
 import urllib.parse
 import requests
+from dotenv import load_dotenv
+load_dotenv()
+
 
 app = Flask(__name__)
 CORS(app)
 
-PEXELS_API_KEY = "5tH88UFEp2q1deVDXDHwdnLRBCCKPX2P5BuDNS4HC8PXGgy4bLaS6WLL"  # Replace with your actual Pexels API key
-PEXELS_API_URL = 'https://api.pexels.com/v1/search'
+import os
+
+
+PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
+PEXELS_API_URL = os.environ.get("PEXELS_API_URL", "https://api.pexels.com/v1/search")
+
 
 
 class DictionaryAPI:
@@ -20,14 +27,14 @@ class DictionaryAPI:
     def search_word(self, word):
         word = word.strip().lower()
 
-        if word == 'ajay':
-            definitions = [{
-                'type': 'person',
-                'definition': "Ajay Balina is an upcoming hero from AP (Andhra Pradesh), currently pursuing B.Tech in Sri Vasavi Engineering College in the ECE branch.",
-                'example': "Ajay Balina is known for his innovative tech ideas."
-            }]
-            image_url = "/static/images/ajay.jpg"  # Serve it correctly
-            return self.build_response(word, definitions, image_url=image_url)
+        # if word == 'ajay':
+        #     definitions = [{
+        #         'type': 'person',
+        #         'definition': "Ajay Balina is an upcoming hero from AP (Andhra Pradesh), currently pursuing B.Tech in Sri Vasavi Engineering College in the ECE branch.",
+        #         'example': "Ajay Balina is known for his innovative tech ideas."
+        #     }]
+        #     image_url = "/static/images/ajay.jpg"  # Serve it correctly
+        #     return self.build_response(word, definitions, image_url=image_url)
 
         if word in self.dictionary:
             definitions = self.dictionary[word]
